@@ -1,11 +1,18 @@
 import numpy as np
 import pybullet as p
+import sys
+import torch
 
 from .env import AssistiveEnv
 
 class ScratchItchEnv(AssistiveEnv):
-    def __init__(self, robot, human):
+    def __init__(self, robot, human, reward_net=None):
         super(ScratchItchEnv, self).__init__(robot=robot, human=human, task='scratch_itch', obs_robot_len=(23 + len(robot.controllable_joint_indices) - (len(robot.wheel_joint_indices) if robot.mobile else 0)), obs_human_len=(24 + len(human.controllable_joint_indices)))
+        self.reward_net = reward_net
+        if self.reward_net is None:
+            sys.stdout.write("Using default reward...\n")
+        else:
+            sys.stdout.write("Using custom reward...\n")
 
     def step(self, action):
         if self.human.controllable:
@@ -29,8 +36,13 @@ class ScratchItchEnv(AssistiveEnv):
             self.prev_target_contact_pos = self.target_contact_pos
             self.task_success += 1
 
-        reward = self.config('distance_weight')*reward_distance + self.config('action_weight')*reward_action + self.config('scratch_reward_weight')*reward_force_scratch + preferences_score
-
+        if self.reward_net is None:
+            reward = self.config('distance_weight')*reward_distance + self.config('action_weight')*reward_action + self.config('scratch_reward_weight')*reward_force_scratch + preferences_score
+        else:
+            with torch.no_grad():
+                reward = self.reward_net(self.state, action).exp().item()
+        self.state = obs
+                
         if self.gui and self.tool_force_at_target > 0:
             print('Task success:', self.task_success, 'Tool force at target:', self.tool_force_at_target, reward_force_scratch)
 
@@ -129,7 +141,9 @@ class ScratchItchEnv(AssistiveEnv):
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1, physicsClientId=self.id)
 
         self.init_env_variables()
-        return self._get_obs()
+
+        self.state = self._get_obs()
+        return self.state
 
     def generate_target(self):
         # Randomly select either upper arm or forearm for the target limb to scratch
@@ -137,7 +151,7 @@ class ScratchItchEnv(AssistiveEnv):
             self.limb, length, radius = [[self.human.right_shoulder, 0.279, 0.043], [self.human.right_elbow, 0.257, 0.033]][self.np_random.randint(2)]
         else:
             self.limb, length, radius = [[self.human.right_shoulder, 0.264, 0.0355], [self.human.right_elbow, 0.234, 0.027]][self.np_random.randint(2)]
-        self.target_on_arm = self.util.point_on_capsule(p1=np.array([0, 0, 0]), p2=np.array([0, 0, -length]), radius=radius, theta_range=(0, np.pi*2))
+        self.target_on_arm = self.util.point_on_capsule(p1=np.array([0, 0, 0]), p2=np.array([0, 0, -length]), radius=radius, theta_range=(np.pi/4, np.pi/3))
         arm_pos, arm_orient = self.human.get_pos_orient(self.limb)
         target_pos, target_orient = p.multiplyTransforms(arm_pos, arm_orient, self.target_on_arm, [0, 0, 0, 1], physicsClientId=self.id)
 

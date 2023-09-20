@@ -23,12 +23,12 @@ class ScratchItchBaxterEnv(ScratchItchEnv):
         super(ScratchItchBaxterEnv, self).__init__(robot=Baxter(robot_arm), human=Human(human_controllable_joint_indices, controllable=False))
 
 class ScratchItchSawyerEnv(ScratchItchEnv):
-    def __init__(self):
-        super(ScratchItchSawyerEnv, self).__init__(robot=Sawyer(robot_arm), human=Human(human_controllable_joint_indices, controllable=False))
+    def __init__(self, reward_net=None):
+        super(ScratchItchSawyerEnv, self).__init__(robot=Sawyer(robot_arm), human=Human(human_controllable_joint_indices, controllable=False), reward_net=reward_net)
 
 class ScratchItchJacoEnv(ScratchItchEnv):
-    def __init__(self):
-        super(ScratchItchJacoEnv, self).__init__(robot=Jaco(robot_arm), human=Human(human_controllable_joint_indices, controllable=False))
+    def __init__(self, reward_net=None):
+        super(ScratchItchJacoEnv, self).__init__(robot=Jaco(robot_arm), human=Human(human_controllable_joint_indices, controllable=False), reward_net=reward_net)
 
 class ScratchItchStretchEnv(ScratchItchEnv):
     def __init__(self):
