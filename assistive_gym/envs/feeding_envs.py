@@ -23,8 +23,8 @@ class FeedingBaxterEnv(FeedingEnv):
         super(FeedingBaxterEnv, self).__init__(robot=Baxter(robot_arm), human=Human(human_controllable_joint_indices, controllable=False))
 
 class FeedingSawyerEnv(FeedingEnv):
-    def __init__(self):
-        super(FeedingSawyerEnv, self).__init__(robot=Sawyer(robot_arm), human=Human(human_controllable_joint_indices, controllable=False))
+    def __init__(self, reward_net=None):
+        super(FeedingSawyerEnv, self).__init__(robot=Sawyer(robot_arm), human=Human(human_controllable_joint_indices, controllable=False), reward_net=reward_net)
 
 class FeedingJacoEnv(FeedingEnv):
     def __init__(self):

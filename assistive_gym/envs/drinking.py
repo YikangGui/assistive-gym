@@ -65,8 +65,8 @@ class DrinkingEnv(AssistiveEnv):
             water_pos, water_orient = w.get_base_pos_orient()
             if not self.util.points_in_cylinder(top_center_pos, bottom_center_pos, 0.05, np.array(water_pos)):
                 distance_to_mouth = np.linalg.norm(self.target_pos - water_pos)
-                if distance_to_mouth < 0.03: # hard
-                # if distance_to_mouth < 0.05: # easy
+                # if distance_to_mouth < 0.03: # hard
+                if distance_to_mouth < 0.05: # easy
                     # Delete particle and give robot a reward
                     water_reward += 10
                     self.task_success += 1
@@ -121,7 +121,7 @@ class DrinkingEnv(AssistiveEnv):
 
     def reset(self):
         super(DrinkingEnv, self).reset()
-        self.build_assistive_env('wheelchair')
+        self.build_assistive_env('wheelchair', human_impairment='none', gender='male')
         if self.robot.wheelchair_mounted:
             wheelchair_pos, wheelchair_orient = self.furniture.get_base_pos_orient()
             self.robot.set_base_pos_orient(wheelchair_pos + np.array(self.robot.toc_base_pos_offset[self.task]), [0, 0, -np.pi/2.0])
@@ -130,7 +130,7 @@ class DrinkingEnv(AssistiveEnv):
         self.robot.motor_gains = self.human.motor_gains = 0.005
 
         joints_positions = [(self.human.j_right_elbow, -90), (self.human.j_left_elbow, -90), (self.human.j_right_hip_x, -90), (self.human.j_right_knee, 80), (self.human.j_left_hip_x, -90), (self.human.j_left_knee, 80)]
-        joints_positions += [(self.human.j_head_x, self.np_random.uniform(-30, 30)), (self.human.j_head_y, self.np_random.uniform(-30, 30)), (self.human.j_head_z, self.np_random.uniform(-30, 30))]
+        joints_positions += [(self.human.j_head_x, self.np_random.uniform(-30, -30)), (self.human.j_head_y, self.np_random.uniform(0, 0)), (self.human.j_head_z, self.np_random.uniform(0, 0))]
         self.human.setup_joints(joints_positions, use_static_joints=True, reactive_force=None)
 
         self.generate_target()
@@ -175,7 +175,7 @@ class DrinkingEnv(AssistiveEnv):
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1, physicsClientId=self.id)
 
         # Drop water in the cup
-        for _ in range(50):
+        for _ in range(1):
             p.stepSimulation(physicsClientId=self.id)
 
         self.init_env_variables()

@@ -47,7 +47,7 @@ class ScratchItchEnv(AssistiveEnv):
             print('Task success:', self.task_success, 'Tool force at target:', self.tool_force_at_target, reward_force_scratch)
 
         info = {'total_force_on_human': self.total_force_on_human, 'task_success': int(self.task_success >= self.config('task_success_threshold')), 'action_robot_len': self.action_robot_len, 'action_human_len': self.action_human_len, 'obs_robot_len': self.obs_robot_len, 'obs_human_len': self.obs_human_len}
-        done = self.iteration >= 200
+        done = (self.iteration >= 100)
 
         if not self.human.controllable:
             return obs, reward, done, info
@@ -104,7 +104,7 @@ class ScratchItchEnv(AssistiveEnv):
 
     def reset(self):
         super(ScratchItchEnv, self).reset()
-        self.build_assistive_env('wheelchair')
+        self.build_assistive_env('wheelchair', human_impairment='none', gender='male')
         self.prev_target_contact_pos = np.zeros(3)
         if self.robot.wheelchair_mounted:
             wheelchair_pos, wheelchair_orient = self.furniture.get_base_pos_orient()
@@ -148,10 +148,12 @@ class ScratchItchEnv(AssistiveEnv):
     def generate_target(self):
         # Randomly select either upper arm or forearm for the target limb to scratch
         if self.human.gender == 'male':
-            self.limb, length, radius = [[self.human.right_shoulder, 0.279, 0.043], [self.human.right_elbow, 0.257, 0.033]][self.np_random.randint(2)]
+            # self.limb, length, radius = [[self.human.right_shoulder, 0.279, 0.043], [self.human.right_elbow, 0.257, 0.033]][self.np_random.randint(2)]
+            self.limb, length, radius = [self.human.right_shoulder, 0.279, 0.043]
         else:
-            self.limb, length, radius = [[self.human.right_shoulder, 0.264, 0.0355], [self.human.right_elbow, 0.234, 0.027]][self.np_random.randint(2)]
-        self.target_on_arm = self.util.point_on_capsule(p1=np.array([0, 0, 0]), p2=np.array([0, 0, -length]), radius=radius, theta_range=(np.pi/4, np.pi/3))
+            # self.limb, length, radius = [[self.human.right_shoulder, 0.264, 0.0355], [self.human.right_elbow, 0.234, 0.027]][self.np_random.randint(2)]
+            self.limb, length, radius = [self.human.right_shoulder, 0.264, 0.0355]
+        self.target_on_arm = self.util.point_on_capsule(p1=np.array([0, 0, -0.05]), p2=np.array([0, 0, -0.25]), radius=radius, theta_range=(np.pi/4, np.pi/3))
         arm_pos, arm_orient = self.human.get_pos_orient(self.limb)
         target_pos, target_orient = p.multiplyTransforms(arm_pos, arm_orient, self.target_on_arm, [0, 0, 0, 1], physicsClientId=self.id)
 

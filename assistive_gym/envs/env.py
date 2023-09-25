@@ -150,7 +150,7 @@ class AssistiveEnv(gym.Env):
 
     def update_action_space(self):
         action_len = np.sum([len(a.controllable_joint_indices) for a in self.agents if not isinstance(a, Human) or a.controllable])
-        self.action_space.__init__(low=-np.ones(action_len, dtype=np.float32), high=np.ones(action_len, dtype=np.float32), dtype=np.float32)
+        self.action_space.__init__(low=-np.ones(action_len, dtype=np.float32) / 10, high=np.ones(action_len, dtype=np.float32) / 10, dtype=np.float32)
 
     def create_human(self, controllable=False, controllable_joint_indices=[], fixed_base=False, human_impairment='random', gender='random', mass=None, radius_scale=1.0, height_scale=1.0):
         '''
@@ -171,7 +171,7 @@ class AssistiveEnv(gym.Env):
         self.update_action_space()
         return self.robot
 
-    def take_step(self, actions, gains=None, forces=None, action_multiplier=0.05, step_sim=True):
+    def take_step(self, actions, gains=None, forces=None, action_multiplier=0.01, step_sim=True):
         if gains is None:
             gains = [a.motor_gains for a in self.agents]
         elif type(gains) not in (list, tuple):
@@ -293,7 +293,7 @@ class AssistiveEnv(gym.Env):
                 self.robot.randomize_init_joint_angles(self.task)
             elif self.robot.wheelchair_mounted and wheelchair_enabled:
                 # Use IK to find starting joint angles for mounted robots
-                self.robot.ik_random_restarts(right=(arm == 'right'), target_pos=target_ee_pos, target_orient=target_ee_orient, max_iterations=1000, max_ik_random_restarts=1000, success_threshold=0.01, step_sim=False, check_env_collisions=False, randomize_limits=True, collision_objects=collision_objects)
+                self.robot.ik_random_restarts(right=(arm == 'right'), target_pos=target_ee_pos, target_orient=target_ee_orient, max_iterations=1000, max_ik_random_restarts=50, success_threshold=0.01, step_sim=False, check_env_collisions=False, randomize_limits=True, collision_objects=collision_objects)
             else:
                 # Use TOC with JLWKI to find an optimal base position for the robot near the person
                 base_position, _, _ = self.robot.position_robot_toc(self.task, arm, start_pos_orient, target_pos_orients, self.human, step_sim=False, check_env_collisions=False, max_ik_iterations=100, max_ik_random_restarts=1, randomize_limits=False, right_side=right_side, base_euler_orient=[0, 0, 0 if right_side else np.pi], attempts=50)

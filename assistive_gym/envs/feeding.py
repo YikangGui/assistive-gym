@@ -1,13 +1,20 @@
 import numpy as np
 import pybullet as p
+import sys
+import torch
 
 from .env import AssistiveEnv
 from .agents import furniture
 from .agents.furniture import Furniture
 
 class FeedingEnv(AssistiveEnv):
-    def __init__(self, robot, human):
+    def __init__(self, robot, human, reward_net=None):
         super(FeedingEnv, self).__init__(robot=robot, human=human, task='feeding', obs_robot_len=(18 + len(robot.controllable_joint_indices) - (len(robot.wheel_joint_indices) if robot.mobile else 0)), obs_human_len=(19 + len(human.controllable_joint_indices)))
+        self.reward_net = reward_net
+        if self.reward_net is None:
+            sys.stdout.write("Using default reward...\n")
+        else:
+            sys.stdout.write("Using custom reward...\n")
 
     def step(self, action):
         if self.human.controllable:
@@ -27,14 +34,19 @@ class FeedingEnv(AssistiveEnv):
         reward_distance_mouth_target = -np.linalg.norm(self.target_pos - spoon_pos) # Penalize robot for distance between the spoon and human mouth.
         reward_action = -np.linalg.norm(action) # Penalize actions
 
-        reward = self.config('distance_weight')*reward_distance_mouth_target + self.config('action_weight')*reward_action + self.config('food_reward_weight')*reward_food + preferences_score
+        if self.reward_net is None:
+            reward = self.config('distance_weight')*reward_distance_mouth_target + self.config('action_weight')*reward_action + self.config('food_reward_weight')*reward_food + preferences_score
+        else:
+            with torch.no_grad():
+                reward = self.reward_net(self.state, action).exp().item()
+        self.state = obs
         # print(self.config('distance_weight')*reward_distance_mouth_target, self.config('action_weight')*reward_action, self.config('food_reward_weight')*reward_food, preferences_score)
 
         if self.gui and reward_food != 0:
             print('Task success:', self.task_success, 'Food reward:', reward_food)
 
         info = {'total_force_on_human': self.total_force_on_human, 'task_success': int(self.task_success >= self.total_food_count*self.config('task_success_threshold')), 'action_robot_len': self.action_robot_len, 'action_human_len': self.action_human_len, 'obs_robot_len': self.obs_robot_len, 'obs_human_len': self.obs_human_len}
-        done = self.iteration >= 200
+        done = (self.iteration >= 200)
 
         if not self.human.controllable:
             return obs, reward, done, info
@@ -113,7 +125,7 @@ class FeedingEnv(AssistiveEnv):
 
     def reset(self):
         super(FeedingEnv, self).reset()
-        self.build_assistive_env('wheelchair')
+        self.build_assistive_env('wheelchair', human_impairment='none', gender='male')
         if self.robot.wheelchair_mounted:
             wheelchair_pos, wheelchair_orient = self.furniture.get_base_pos_orient()
             self.robot.set_base_pos_orient(wheelchair_pos + np.array(self.robot.toc_base_pos_offset[self.task]), [0, 0, -np.pi/2.0])
@@ -122,7 +134,7 @@ class FeedingEnv(AssistiveEnv):
         self.robot.motor_gains = self.human.motor_gains = 0.025
 
         joints_positions = [(self.human.j_right_elbow, -90), (self.human.j_left_elbow, -90), (self.human.j_right_hip_x, -90), (self.human.j_right_knee, 80), (self.human.j_left_hip_x, -90), (self.human.j_left_knee, 80)]
-        joints_positions += [(self.human.j_head_x, self.np_random.uniform(-30, 30)), (self.human.j_head_y, self.np_random.uniform(-30, 30)), (self.human.j_head_z, self.np_random.uniform(-30, 30))]
+        joints_positions += [(self.human.j_head_x, self.np_random.uniform(10, 10)), (self.human.j_head_y, self.np_random.uniform(0, 0)), (self.human.j_head_z, self.np_random.uniform(0, 0))]
         self.human.setup_joints(joints_positions, use_static_joints=True, reactive_force=None)
 
         # Create a table
@@ -179,7 +191,8 @@ class FeedingEnv(AssistiveEnv):
             p.stepSimulation(physicsClientId=self.id)
 
         self.init_env_variables()
-        return self._get_obs()
+        self.state = self._get_obs()
+        return self.state
 
     def generate_target(self):
         # Set target on mouth
